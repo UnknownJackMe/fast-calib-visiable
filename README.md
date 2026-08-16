@@ -1,5 +1,7 @@
 # FAST-Calib MID360 + Hikvision
 
+[中文说明](README_zh.md)
+
 ROS 2 calibration toolkit for Livox MID360 LiDAR and Hikvision industrial cameras.
 
 This project packages a practical FAST-Calib workflow for static target calibration:
@@ -165,6 +167,72 @@ config/qr_params_<scene>.yaml
 output/<scene>/filtered_cloud.ply
 output/<scene>/manual_lidar_holes.yaml
 output/<scene>_manual_four_holes/calib_result.txt
+```
+
+## Offline Calibration from a Combined Rosbag
+
+For a static calibration scene, it is valid to record the LiDAR and camera in
+one ROS 2 bag and perform all processing after the target has been removed. The
+camera, LiDAR, and target must remain stationary for the whole recording.
+
+Example recording command, when the camera is published as a ROS image topic:
+
+```bash
+export ROS_DOMAIN_ID=77
+ros2 topic list --no-daemon -t | grep -E 'livox|camera|image'
+
+ros2 bag record \
+  /livox/lidar \
+  /camera/image_raw \
+  -o ~/calibration_bags/scene_001
+```
+
+Confirm the recorded topic names and message types:
+
+```bash
+ros2 bag info ~/calibration_bags/scene_001
+```
+
+The bag must contain:
+
+- a LiDAR topic with type `sensor_msgs/msg/PointCloud2`;
+- a camera topic with type `sensor_msgs/msg/Image` or
+  `sensor_msgs/msg/CompressedImage`.
+
+Import the completed bag and start the same static-cloud/RViz workflow:
+
+```bash
+cd ~/FAST-Calib
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+./scripts/interactive_calibration_from_bag.sh \
+  offline_scene_001 \
+  ~/calibration_bags/scene_001 \
+  /camera/image_raw \
+  /livox/lidar
+```
+
+The importer selects the temporal-middle camera message, saves it as
+`calib_data/<scene>/image.png`, imports the bag into the scene directory,
+generates the scene config, builds the accumulated LiDAR cloud, and opens the
+RViz sphere editor. Recording the camera continuously is allowed, but only one
+image is used by this static calibration algorithm.
+
+To prepare and inspect a scene without launching processing or RViz:
+
+```bash
+PREPARE_ONLY=1 ./scripts/interactive_calibration_from_bag.sh \
+  offline_scene_001 \
+  ~/calibration_bags/scene_001 \
+  /camera/image_raw \
+  /livox/lidar
+```
+
+Continue a prepared scene later with:
+
+```bash
+./scripts/interactive_calibration_workflow.sh offline_scene_001 --existing
 ```
 
 ## Run Existing Data

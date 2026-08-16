@@ -127,3 +127,18 @@ centers:
 - RViz 中只需要 `InteractiveMarkers` display；`Interactive Markers Namespace` 必须是 `/manual_lidar_holes`。
 - 小球本体是 `MOVE_3D` control。选择工具栏 `Interact` 后，直接拖动小球本体，不需要拖轴。
 - 如果运行标定时报 `libusb_set_option`，按 `pitfalls_and_solutions.md` 过滤 `/opt/MVS/lib`。
+
+## 从合并 rosbag 离线进入交互流程
+
+如果一个 ROS 2 bag 同时包含 `/livox/lidar` PointCloud2 和相机 Image/CompressedImage，
+可以在标定板撤走后离线提取中间相机帧并进入同一套 RViz 四球流程：
+
+```bash
+./scripts/interactive_calibration_from_bag.sh \
+  <scene_name> \
+  <bag_path> \
+  <camera_topic> \
+  /livox/lidar
+```
+
+当前静态标定最终只使用相机 topic 中的一张图像。录制期间相机、雷达和标定板必须保持静止。

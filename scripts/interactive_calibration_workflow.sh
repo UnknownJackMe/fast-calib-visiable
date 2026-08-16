@@ -4,10 +4,14 @@ set -euo pipefail
 usage() {
   cat >&2 <<'EOF'
 usage: interactive_calibration_workflow.sh SCENE_NAME [DURATION_S]
+       interactive_calibration_workflow.sh SCENE_NAME --existing
 
 Capture one image + MID360 bag, generate a static accumulated cloud, open RViz
 with four draggable LiDAR hole spheres, save the edited sphere centers, and run
 manual-center FAST-Calib.
+
+Use --existing when calib_data/SCENE_NAME and config/qr_params_SCENE_NAME.yaml
+have already been prepared from an existing rosbag.
 
 After RViz opens:
   1. Set the RViz tool to Interact.
@@ -24,7 +28,14 @@ if [[ $# -lt 1 || $# -gt 2 ]]; then
 fi
 
 scene_name=$1
-duration_s=${2:-25}
+mode=${2:-25}
+use_existing=0
+if [[ "$mode" == "--existing" ]]; then
+  use_existing=1
+  duration_s=0
+else
+  duration_s=$mode
+fi
 export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-77}
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 fast_calib_root=${FAST_CALIB_ROOT:-$(cd "${script_dir}/.." && pwd)}
@@ -53,15 +64,28 @@ else
 fi
 set -u
 
-echo "Capturing scene: ${scene_name}"
-set +e
-scripts/capture_and_run_scene.sh "$scene_name" "$duration_s"
-capture_status=$?
-set -e
+capture_status=0
+if [[ "$use_existing" -eq 0 ]]; then
+  echo "Capturing scene: ${scene_name}"
+  set +e
+  scripts/capture_and_run_scene.sh "$scene_name" "$duration_s"
+  capture_status=$?
+  set -e
+else
+  echo "Using prepared offline scene: ${scene_name}"
+fi
 
 if [[ ! -f "$config_path" ]]; then
   echo "Scene config was not generated: $config_path" >&2
   exit "$capture_status"
+fi
+
+if [[ ! -f "$static_cloud" ]]; then
+  echo "Generating static cloud from prepared scene..."
+  set +e
+  scripts/run_fast_calib_scene.sh "$config_path" "$output_dir"
+  capture_status=$?
+  set -e
 fi
 
 if [[ ! -f "$static_cloud" ]]; then
