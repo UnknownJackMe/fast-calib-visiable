@@ -31,7 +31,7 @@ std::vector<pcl::PointXYZ> loadManualCentersFromYaml(const std::string &path)
   std::ifstream input(path);
   if (!input.is_open())
   {
-    throw std::runtime_error("Failed to open manual LiDAR centers YAML: " + path);
+    throw std::runtime_error("无法打开 LiDAR 孔心 YAML：" + path);
   }
 
   std::regex coord_re(R"(^\s*([xyz]):\s*([-+0-9.eE]+)\s*$)");
@@ -79,7 +79,7 @@ std::vector<pcl::PointXYZ> loadManualCentersFromYaml(const std::string &path)
 
   if (centers.size() != 4)
   {
-    throw std::runtime_error("Expected 4 manual LiDAR centers in " + path + ", got " + std::to_string(centers.size()));
+    throw std::runtime_error("LiDAR 孔心应为 4 个，文件 " + path + " 实际读取到 " + std::to_string(centers.size()) + " 个");
   }
 
   return centers;
@@ -130,9 +130,9 @@ int main(int argc, char **argv)
   {
     RCLCPP_ERROR(
         node->get_logger(),
-        "Refusing unvalidated LiDAR centers. Expected kind=refined_lidar_hole_centers "
-        "and status=pass in %s. Set allow_unvalidated_manual_centers:=true only for "
-        "explicit legacy replay.",
+        "拒绝使用未验证的 LiDAR 孔心。文件 %s 必须包含顶层 "
+        "kind=refined_lidar_hole_centers 和 status=pass。只有明确回放历史数据时才可设置 "
+        "allow_unvalidated_manual_centers:=true。",
         manual_lidar_centers_path.c_str());
     rclcpp::shutdown();
     return 5;
@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
   if (dataPreprocessPtr->img_input_.empty())
   {
-    RCLCPP_ERROR(node->get_logger(), "Input image is empty");
+    RCLCPP_ERROR(node->get_logger(), "输入图像为空");
     rclcpp::shutdown();
     return 2;
   }
@@ -156,7 +156,7 @@ int main(int argc, char **argv)
   qrDetectPtr->detect_qr(dataPreprocessPtr->img_input_, qr_center_cloud);
   if (qr_center_cloud->size() != 4)
   {
-    RCLCPP_ERROR(node->get_logger(), "Expected 4 QR/camera centers, got %zu", qr_center_cloud->size());
+    RCLCPP_ERROR(node->get_logger(), "相机应检测到 4 个孔心，实际得到 %zu 个", qr_center_cloud->size());
     cv::imwrite(params.output_path + "/qr_detect_manual_lidar.png", qrDetectPtr->imageCopy_);
     rclcpp::shutdown();
     return 3;
@@ -184,12 +184,12 @@ int main(int argc, char **argv)
   sortPatternCenters(qr_center_cloud, qr_centers, "camera");
   sortPatternCenters(lidar_center_cloud, lidar_centers, "lidar");
 
-  RCLCPP_INFO(node->get_logger(), "Sorted camera centers:");
+  RCLCPP_INFO(node->get_logger(), "排序后的相机孔心：");
   for (const auto &p : qr_centers->points)
   {
     std::cout << "  " << p.x << " " << p.y << " " << p.z << std::endl;
   }
-  RCLCPP_INFO(node->get_logger(), "Sorted refined LiDAR centers:");
+  RCLCPP_INFO(node->get_logger(), "排序后的 LiDAR 精修孔心：");
   for (const auto &p : lidar_centers->points)
   {
     std::cout << "  " << p.x << " " << p.y << " " << p.z << std::endl;
@@ -204,8 +204,8 @@ int main(int argc, char **argv)
   alignPointCloud(lidar_centers, aligned_lidar_centers, transformation);
 
   double rmse = computeRMSE(qr_centers, aligned_lidar_centers);
-  RCLCPP_INFO(node->get_logger(), "[Refined LiDAR centers] RMSE: %.6f m", rmse);
-  RCLCPP_INFO(node->get_logger(), "[Refined LiDAR centers] T_cam_lidar:");
+  RCLCPP_INFO(node->get_logger(), "[LiDAR 精修孔心] 配准 RMSE：%.6f m", rmse);
+  RCLCPP_INFO(node->get_logger(), "[LiDAR 精修孔心] T_cam_lidar：");
   std::cout << BOLDCYAN << std::fixed << std::setprecision(6) << transformation << RESET << std::endl;
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);

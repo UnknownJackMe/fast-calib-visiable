@@ -1,14 +1,17 @@
-# RViz 四球粗定位与 LiDAR 孔心自动精修流程
+# RViz 多边形标定板选择、四球粗定位与 LiDAR 孔心自动精修流程
 
 ## 1. 流程定义
 
-四个 RViz 小球只用于告诉程序“每个孔大概在哪里”，不是精确孔心。
+流程先使用低分辨率完整场景预览和任意多边形选择标定板，再在高分辨率板面点云上使用四球粗定位。四个 RViz 小球只用于告诉程序“每个孔大概在哪里”，不是精确孔心。
 
 完整流程：
 
 ```text
 相机图像 + LiDAR bag
-  -> 累计静态点云
+  -> 高分辨率完整静态点云 + 低分辨率 RViz 预览
+  -> 屏幕任意多边形框选标定板
+  -> 可见点筛选 + 局部平面 RANSAC
+  -> 从高分辨率点云提取完整标定板
   -> RViz 四球粗定位
   -> 保存 rough seeds
   -> 每个 seed 附近局部搜索板面空洞
@@ -60,7 +63,35 @@ source install/setup.bash
 ./scripts/interactive_calibration_workflow.sh <scene_name> --existing
 ```
 
-## 5. RViz 操作
+## 5. RViz 任意多边形标定板选择
+
+第一阶段使用 FAST-Calib 专用 Tool：
+
+```text
+fast_calib/BoardPolygonSelection
+```
+
+操作方式：
+
+1. 按 `P` 激活 Tool，确认鼠标为十字光标；
+2. 不需要点中具体点云点；
+3. 按住左键沿标定板外围连续拖动套索；
+4. 松开左键自动闭合并处理；右键或 Esc 取消；
+5. 灰色为完整预览，黄色为原始选中点，绿色为提取板面；
+6. 橙色线框显示选区 hull，蓝色箭头显示平面法向；
+7. 绿色板面完整时回到终端按 Enter，否则输入 `r` 重画。
+
+性能分层：
+
+```text
+static_cloud_full.ply       默认 1 cm voxel，只用于后台提取
+static_cloud_preview.ply    默认 3 cm voxel，只用于 RViz 交互
+selected_board_cloud.ply    最终高分辨率标定板点云
+```
+
+多边形是屏幕空间任意多边形，不要求矩形，也不要求与 LiDAR 坐标轴平行。
+
+## 6. RViz 四球操作
 
 RViz 打开后：
 
@@ -83,14 +114,14 @@ ros2 service call /save_lidar_hole_seeds std_srvs/srv/Trigger {}
 
 旧服务名 `/save_lidar_hole_markers` 仍保留兼容。
 
-## 6. 自动精修
+## 7. 自动精修
 
 保存 seed 后，脚本运行：
 
 ```bash
 python3 scripts/refine_lidar_hole_seeds.py \
-  --plane-cloud output/<scene>/plane_cloud.ply \
-  --filtered-cloud output/<scene>/filtered_cloud.ply \
+  --plane-cloud output/<scene>/selected_board_cloud.ply \
+  --filtered-cloud output/<scene>/selected_board_cloud.ply \
   --seeds output/<scene>/manual_lidar_hole_seeds.yaml \
   --config config/hole_refinement_params.yaml \
   --output output/<scene>/refined_lidar_holes.yaml \
@@ -100,7 +131,7 @@ python3 scripts/refine_lidar_hole_seeds.py \
 
 算法步骤：
 
-1. 使用预分割板面；没有 `plane_cloud.ply` 时从 filtered cloud RANSAC 提取主平面；
+1. 使用用户多边形确认后的 `selected_board_cloud.ply`；
 2. 将板面展开到二维坐标；
 3. 在每个 seed 附近搜索最大空圆；
 4. 按角度提取孔边界最近点；
@@ -115,14 +146,17 @@ python3 scripts/refine_lidar_hole_seeds.py \
 
 精修失败时不会计算外参。用户调整失败 seed 后可以直接重试，不需要重新采集。
 
-## 7. 输出文件
+## 8. 输出文件
 
 ```text
 calib_data/<scene>/image.png
 calib_data/<scene>/lidar_bag/
 config/qr_params_<scene>.yaml
 output/<scene>/filtered_cloud.ply
-output/<scene>/plane_cloud.ply
+output/<scene>/static_cloud_full.ply
+output/<scene>/static_cloud_preview.ply
+output/<scene>/selected_board_cloud.ply
+output/<scene>/board_extraction_report.yaml
 output/<scene>/manual_lidar_hole_seeds.yaml
 output/<scene>/refined_lidar_holes.yaml
 output/<scene>/hole_refinement_report.yaml
@@ -162,7 +196,7 @@ centers:
   status: pass
 ```
 
-## 8. 质量门限
+## 9. 质量门限
 
 默认参数位于：
 
@@ -181,7 +215,7 @@ config/hole_refinement_params.yaml
 
 只有报告 `status: pass` 时才允许外参工具继续。
 
-## 9. 已验证结果
+## 10. 已验证结果
 
 ```text
 recalib_202260816_02
@@ -194,11 +228,13 @@ final_success_20260617
   自动精修回归 RMSE：     0.002671 m
 ```
 
-## 10. 注意事项
+## 11. 注意事项
 
 - 录制期间相机、雷达和标定板必须静止；
 - RDP 下使用静态累计点云，不循环播放实时点云；
 - 四个 seed 必须分别对应四个不同孔；
+- 多边形选择阶段必须确认绿色点云覆盖完整标定板；
+- 预览范围不足时通过 `FAST_CALIB_PREVIEW_MIN_X` 等环境变量扩大宽松场景范围；
 - 精修失败时不要通过 legacy 开关强行出最终外参；
 - `allow_unvalidated_manual_centers:=true` 只用于显式回放历史数据；
 - 如果 PCL 报 `libusb_set_option`，过滤 `/opt/MVS/lib` 中的旧 libusb。

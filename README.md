@@ -8,7 +8,10 @@ This project packages a practical FAST-Calib workflow for static target calibrat
 
 - capture one Hikvision image and one MID360 `sensor_msgs/msg/PointCloud2` bag;
 - run FAST-Calib to extract camera observations and a static accumulated LiDAR cloud;
-- open RViz2 with four independently movable rough-seed spheres;
+- create a high-resolution processing cloud and a low-load full-scene RViz preview;
+- select the board with a FAST-Calib arbitrary-polygon RViz2 Tool;
+- recover the selected tilted board from the high-resolution cloud;
+- open the extracted board cloud with four independently movable rough-seed spheres;
 - move every seed freely along LiDAR X/Y/Z near its corresponding board hole,
   including scenes where the LiDAR or target is tilted;
 - refine the four hole centers from local point-cloud geometry;
@@ -128,13 +131,23 @@ The script will:
 1. capture a Hikvision image;
 2. record a MID360 bag for the requested duration;
 3. generate `config/qr_params_<scene>.yaml`;
-4. run FAST-Calib once to create `output/<scene>/filtered_cloud.ply`;
-5. start `scripts/interactive_lidar_hole_editor.py`;
-6. open RViz2 with `output/<scene>/manual_lidar_hole_editor.rviz`;
-7. save four approximate hole seeds;
-8. fit and validate the true LiDAR hole centers near those seeds;
-9. show refined centers as smaller green spheres;
-10. calculate the extrinsic parameters only from validated refined centers.
+4. create a high-resolution `static_cloud_full.ply` processing cloud;
+5. create a low-resolution `static_cloud_preview.ply` RViz preview;
+6. open the arbitrary-polygon board selection Tool;
+7. fit the selected plane and recover `selected_board_cloud.ply` from the high-resolution cloud;
+8. start `scripts/interactive_lidar_hole_editor.py` on the extracted board;
+9. save four approximate hole seeds;
+10. fit and validate the true LiDAR hole centers near those seeds;
+11. show refined centers as smaller green spheres;
+12. calculate the extrinsic parameters only from validated refined centers.
+
+### Stage 1: arbitrary-polygon board selection
+
+Press `P` to activate `Board Polygon Selection` / `标定板多边形选择`. The cursor becomes a crosshair. Hold the left mouse button and drag a continuous lasso around the board, then release to finish; the lasso does not need to hit individual cloud points. Right-click or Esc cancels the current lasso. RViz renders only a downsampled full-scene preview; the selection is then applied to the high-resolution cloud through visible-point depth filtering, local plane RANSAC, and a plane-space convex hull.
+
+The preview is gray, raw selected points are yellow, the extracted board is green, and the outline/normal are shown as markers. Accept only when the green cloud covers the complete calibration target.
+
+### Stage 2: rough seeds and hole refinement
 
 Example RViz2 views:
 
@@ -183,6 +196,10 @@ calib_data/<scene>/image.png
 calib_data/<scene>/lidar_bag/
 config/qr_params_<scene>.yaml
 output/<scene>/filtered_cloud.ply
+output/<scene>/static_cloud_full.ply
+output/<scene>/static_cloud_preview.ply
+output/<scene>/selected_board_cloud.ply
+output/<scene>/board_extraction_report.yaml
 output/<scene>/manual_lidar_hole_seeds.yaml
 output/<scene>/refined_lidar_holes.yaml
 output/<scene>/hole_refinement_report.yaml
@@ -299,6 +316,10 @@ If RViz2 shows the cloud but the spheres are not draggable:
 - the active RViz tool must be `Interact`;
 - select a colored sphere and use `move_x`, `move_y`, or `move_z` when depth
   motion is difficult with direct sphere dragging.
+
+If the `fast_calib/BoardPolygonSelection` Tool is missing, rebuild the package,
+source `install/setup.bash` again, and verify that
+`install/fast_calib/lib/libfast_calib_rviz_plugins.so` exists.
 
 If `/livox/lidar` is missing, verify:
 

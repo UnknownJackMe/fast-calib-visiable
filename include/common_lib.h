@@ -156,7 +156,7 @@ double computeRMSE(const pcl::PointCloud<pcl::PointXYZ>::Ptr &cloud1,
 {
   if (cloud1->size() != cloud2->size())
   {
-    std::cerr << BOLDRED << "[computeRMSE] Point cloud sizes do not match, cannot compute RMSE." << RESET << std::endl;
+    std::cerr << BOLDRED << "[computeRMSE] 两组点云数量不一致，无法计算 RMSE。" << RESET << std::endl;
     return -1.0;
   }
 
@@ -251,7 +251,7 @@ void saveCalibrationResults(const Params &params, const Eigen::Matrix4f &transfo
 {
   if (colored_cloud->empty())
   {
-    std::cerr << BOLDRED << "[saveCalibrationResults] Colored point cloud is empty!" << RESET << std::endl;
+    std::cerr << BOLDRED << "[保存标定结果] 彩色投影点云为空。" << RESET << std::endl;
     return;
   }
   std::string outputDir = params.output_path;
@@ -286,21 +286,21 @@ void saveCalibrationResults(const Params &params, const Eigen::Matrix4f &transfo
     outFile << std::setw(10) << transformation(0, 3) << ", " << std::setw(10) << transformation(1, 3) << ", " << std::setw(10) << transformation(2, 3) << "]\n";
 
     outFile.close();
-    std::cout << BOLDYELLOW << "[Result] Calibration results saved to " << BOLDWHITE << outputDir << "calib_result.txt" << RESET << std::endl;
+    std::cout << BOLDYELLOW << "[结果] 外参已保存：" << BOLDWHITE << outputDir << "calib_result.txt" << RESET << std::endl;
   }
   else
   {
-    std::cerr << BOLDRED << "[Error] Failed to open calib_result.txt for writing!" << RESET << std::endl;
+    std::cerr << BOLDRED << "[错误] 无法打开 calib_result.txt 进行写入。" << RESET << std::endl;
   }
 
   if (pcl::io::savePCDFileASCII(outputDir + "colored_cloud.pcd", *colored_cloud) == 0)
   {
     pcl::io::savePLYFile(outputDir + "colored_cloud.ply", *colored_cloud);
-    std::cout << BOLDYELLOW << "[Result] Saved colored point cloud to: " << BOLDWHITE << outputDir << "colored_cloud.pcd" << RESET << std::endl;
+    std::cout << BOLDYELLOW << "[结果] 彩色投影点云已保存：" << BOLDWHITE << outputDir << "colored_cloud.pcd" << RESET << std::endl;
   }
   else
   {
-    std::cerr << BOLDRED << "[Error] Failed to save colored point cloud to " << outputDir << "colored_cloud.pcd" << "!" << RESET << std::endl;
+    std::cerr << BOLDRED << "[错误] 无法保存彩色投影点云：" << outputDir << "colored_cloud.pcd" << RESET << std::endl;
   }
 
   imwrite(outputDir + "qr_detect.png", img_input);
@@ -312,7 +312,7 @@ void sortPatternCenters(pcl::PointCloud<pcl::PointXYZ>::Ptr pc,
 {
   if (pc->size() != 4)
   {
-    std::cerr << "Number of centers must be 4\n";
+    std::cerr << "孔心数量必须为 4\n";
     return;
   }
 

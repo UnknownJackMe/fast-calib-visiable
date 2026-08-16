@@ -41,15 +41,15 @@ public:
         img_input_ = cv::imread(params.image_path, cv::IMREAD_UNCHANGED);
         if (img_input_.empty())
         {
-            std::string msg = "Loading the image " + image_path + " failed";
+            std::string msg = "加载图像失败：" + image_path;
             std::cerr << msg << std::endl;
             return;
         }
-        std::cout << "Successfully loaded image: " << image_path << std::endl;
+        std::cout << "已加载图像：" << image_path << std::endl;
 
         // Try to load point cloud from ROS2 bag file
-        std::cout << "Attempting to load point cloud from ROS2 bag: " << bag_path << std::endl;
-        std::cout << "Looking for topic: " << lidar_topic << std::endl;
+        std::cout << "正在读取 ROS 2 bag 点云：" << bag_path << std::endl;
+        std::cout << "LiDAR topic：" << lidar_topic << std::endl;
 
         loadPointCloudFromBag(bag_path, lidar_topic, cloud_input_);
         // pcl::io::savePLYFile(output_path + "/cloud_input.ply", *cloud_input_);
@@ -93,7 +93,7 @@ private:
         }
         catch (const std::exception &e)
         {
-            std::cerr << "Error reading bag file: " << e.what() << std::endl;
+            std::cerr << "读取 bag 失败：" << e.what() << std::endl;
             return false;
         }
 

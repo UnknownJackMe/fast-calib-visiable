@@ -34,7 +34,20 @@ source install/setup.bash
 ./scripts/interactive_calibration_workflow.sh <scene_name> 25
 ```
 
-## 4. RViz 四球操作
+## 4. RViz 任意多边形选择标定板
+
+脚本首先打开完整场景的低分辨率预览：
+
+1. 按 `P` 激活 `标定板多边形选择`，确认鼠标变成十字光标；
+2. 不需要点中具体点云点；
+3. 按住左键，在标定板外围连续拖动一圈；
+4. 松开左键自动完成；右键或 Esc 取消；
+5. 检查绿色点云是否覆盖完整标定板；
+6. 回到终端按 Enter 接受，或输入 `r` 清除候选并重新拖动套索。
+
+程序使用低分辨率点云交互，但会从高分辨率点云提取最终板面，因此不会因为预览降采样影响孔心精修。
+
+## 5. RViz 四球操作
 
 1. 选择 `Interact`；
 2. 将四个彩色球分别拖到对应孔附近；
@@ -52,31 +65,42 @@ source install/setup.bash
 
 精修失败时调整对应 seed 后重试，不需要重新采集。
 
-## 5. 输出
+## 6. 输出
 
 ```text
 output/<scene>/manual_lidar_hole_seeds.yaml
+output/<scene>/static_cloud_full.ply
+output/<scene>/static_cloud_preview.ply
+output/<scene>/selected_board_cloud.ply
+output/<scene>/board_extraction_report.yaml
 output/<scene>/refined_lidar_holes.yaml
 output/<scene>/hole_refinement_report.yaml
 output/<scene>/refinement_debug/
 output/<scene>_refined_four_holes/calib_result.txt
 ```
 
-## 6. 已有场景重新进入
+## 7. 已有场景重新进入
 
 ```bash
 ./scripts/interactive_calibration_workflow.sh <scene_name> --existing
 ```
 
-## 7. 验收
+已有标定板提取结果时默认复用。强制重新框选：
+
+```bash
+RESELECT_BOARD=1 ./scripts/interactive_calibration_workflow.sh <scene_name> --existing
+```
+
+## 8. 验收
 
 - `hole_refinement_report.yaml` 必须为 `status: pass`；
+- `board_extraction_report.yaml` 不能为 `status: fail`；
 - 外参工具默认拒绝 rough seed 文件；
 - 目标 RMSE 小于 `0.008 m`，理想值约 `0.005 m` 或更低；
 - 检查 `colored_cloud.ply` 投影效果；
 - 当前回归场景已达到 `0.002541 m` 和 `0.002671 m`。
 
-## 8. 常见错误
+## 9. 常见错误
 
 如果出现：
 

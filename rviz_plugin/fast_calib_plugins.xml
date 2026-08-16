@@ -1,0 +1,10 @@
+<library path="fast_calib_rviz_plugins">
+  <class
+    name="fast_calib/BoardPolygonSelection"
+    type="fast_calib::BoardPolygonSelectionTool"
+    base_class_type="rviz_common::Tool">
+    <description>
+      标定板套索选择工具：按住左键拖动，松开左键完成，不需要点中具体点云。
+    </description>
+  </class>
+</library>

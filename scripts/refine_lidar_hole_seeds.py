@@ -438,7 +438,7 @@ def main():
         )
         seed_uv_values[name] = seed_uv
         candidate_lists.append(candidates)
-        print(f"{name}: {len(candidates)} local circle candidates")
+        print(f"{name}：找到 {len(candidates)} 个局部圆候选")
         if not candidates:
             failure_reasons.append(f"{name}: no valid local circle candidates")
 
@@ -512,23 +512,24 @@ def main():
             np.asarray([candidate["center_xyz"] for candidate in combo]),
         )
 
-    print(f"Refinement status: {overall_status}")
+    status_text = "通过" if overall_status == "pass" else "失败"
+    print(f"自动精修状态：{status_text} ({overall_status})")
     for item in refined_centers:
         print(
-            f"  {item['name']}: ({item['x']:.6f}, {item['y']:.6f}, {item['z']:.6f}) "
-            f"r={item['fitted_radius_m']:.4f} rmse={item['radial_rmse_m']:.4f} "
-            f"seed_delta={item['seed_distance_m']:.4f}"
+            f"  {item['name']}：({item['x']:.6f}, {item['y']:.6f}, {item['z']:.6f}) "
+            f"半径={item['fitted_radius_m']:.4f} m，拟合RMSE={item['radial_rmse_m']:.4f} m，"
+            f"seed偏移={item['seed_distance_m']:.4f} m"
         )
     if metrics:
-        print("Geometry:")
+        print("四孔几何：")
         for key, value in metrics.items():
             print(f"  {key}: {value:.6f} m")
     if failure_reasons:
-        print("Failures:")
+        print("失败原因：")
         for reason in failure_reasons:
             print(f"  {reason}")
-    print(f"Refined centers: {args.output}")
-    print(f"Report: {args.report}")
+    print(f"精修孔心文件：{args.output}")
+    print(f"质量报告：{args.report}")
     raise SystemExit(0 if overall_status == "pass" else 3)
 
 

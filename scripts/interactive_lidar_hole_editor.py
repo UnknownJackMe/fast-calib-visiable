@@ -154,10 +154,10 @@ class LidarHoleEditor(Node):
         self.create_markers()
         self.write_centers()
         self.get_logger().info(
-            f"Loaded {len(self.points)} points from {args.cloud.resolve()}; "
-            f"place four rough seeds in RViz and call /save_lidar_hole_seeds"
+            f"已从 {args.cloud.resolve()} 加载 {len(self.points)} 个点；"
+            f"请在 RViz 中放置四个 rough seed，完成后调用 /save_lidar_hole_seeds"
         )
-        self.get_logger().info(f"Current centers file: {self.output_path}")
+        self.get_logger().info(f"当前 rough seed 文件：{self.output_path}")
 
     def publish_cloud(self):
         stamp = self.get_clock().now().to_msg()
@@ -264,7 +264,7 @@ class LidarHoleEditor(Node):
     def save_callback(self, _request, response):
         self.write_centers()
         response.success = True
-        response.message = f"Saved 4 rough LiDAR hole seeds to {self.output_path}"
+        response.message = f"已保存 4 个 LiDAR 孔位 rough seed：{self.output_path}"
         self.get_logger().info(response.message)
         return response
 

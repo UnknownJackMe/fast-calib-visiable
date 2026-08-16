@@ -8,7 +8,10 @@
 
 - 采集一张海康相机图像和一段 MID360 `PointCloud2`；
 - 运行 FAST-Calib，提取相机观测并累计静态雷达点云；
-- 在 RViz2 中显示静态点云和四个可独立移动的小球；
+- 生成高分辨率处理点云和低负载 RViz2 完整场景预览；
+- 使用 FAST-Calib 专用任意多边形工具框选标定板；
+- 从高分辨率点云中自动提取用户选中的倾斜标定板；
+- 在提取后的标定板点云上显示四个可独立移动的小球；
 - 每个小球都能沿 LiDAR X/Y/Z 三轴自由移动，支持雷达或标定板倾斜安装；
 - 使用小球标记标定板四个孔的大致位置；
 - 自动精修真实孔心并仅使用验证通过的孔心计算外参。
@@ -120,13 +123,31 @@ source install/setup.bash
 1. 抓取一张海康相机图像；
 2. 录制指定时长的 MID360 bag；
 3. 生成 `config/qr_params_<scene>.yaml`；
-4. 生成累计静态点云 `output/<scene>/filtered_cloud.ply`；
-5. 启动四球交互编辑器；
-6. 打开 RViz2；
-7. 保存四个孔的大致 seed；
-8. 在每个 seed 附近自动拟合真实孔心；
-9. 验证四孔 `0.500 × 0.400 m` 几何；
-10. 只使用验证通过的精修孔心计算外参。
+4. 生成 `static_cloud_full.ply` 高分辨率处理点云；
+5. 生成 `static_cloud_preview.ply` 低分辨率 RViz 预览；
+6. 打开 RViz2 任意多边形标定板选择界面；
+7. 根据多边形可见点拟合任意朝向的标定板平面；
+8. 从高分辨率点云生成 `selected_board_cloud.ply`；
+9. 在提取后的标定板点云上启动四球交互编辑器；
+10. 保存四个孔的大致 rough seed；
+11. 在每个 seed 附近自动拟合真实孔心；
+12. 验证四孔 `0.500 × 0.400 m` 几何；
+13. 只使用验证通过的精修孔心计算外参。
+
+### 第一步：任意多边形选择标定板
+
+RViz2 打开后按键盘 `P` 激活 `标定板多边形选择` 工具，确认鼠标变成十字光标：
+
+- 不需要点中任何具体点云点；
+- 按住左键，在标定板外围像画套索一样连续拖动一圈；
+- 松开左键后自动完成选择和板面提取；
+- 右键或 Esc 取消当前套索。
+
+RViz 只显示约 `3 cm` 体素的完整场景预览，避免低性能设备直接渲染数百万点。多边形选择完成后，程序使用可见点深度筛选和局部 RANSAC，从约 `1 cm` 体素的高分辨率点云中提取板面。灰色是完整预览，黄色是多边形原始选中点，绿色是最终标定板，橙色线框和蓝色箭头表示选区轮廓与平面法向。
+
+终端显示“看到绿色标定板完整后按 Enter 确认”时，检查绿色点云是否覆盖完整标定板。如果提取不完整，输入 `r`；程序会删除未确认候选，下一次不会错误复用。
+
+### 第二步：四球粗定位和孔心精修
 
 RViz2 示例：
 
@@ -153,6 +174,10 @@ calib_data/<scene>/image.png
 calib_data/<scene>/lidar_bag/
 config/qr_params_<scene>.yaml
 output/<scene>/filtered_cloud.ply
+output/<scene>/static_cloud_full.ply
+output/<scene>/static_cloud_preview.ply
+output/<scene>/selected_board_cloud.ply
+output/<scene>/board_extraction_report.yaml
 output/<scene>/manual_lidar_hole_seeds.yaml
 output/<scene>/refined_lidar_holes.yaml
 output/<scene>/hole_refinement_report.yaml
@@ -260,6 +285,23 @@ undefined symbol: libusb_set_option
 - `Interactive Markers Namespace` 必须是 `/manual_lidar_holes`；
 - 当前工具必须选择 `Interact`；
 - 前后深度不容易直接拖动时，点击彩色球并使用 `move_x`、`move_y`、`move_z` 三轴手柄。
+
+如果 RViz2 中没有 `标定板多边形选择` 工具：
+
+- 重新执行 `colcon build --packages-select fast_calib`；
+- 重新 `source install/setup.bash`；
+- 确认 `install/fast_calib/lib/libfast_calib_rviz_plugins.so` 存在。
+
+预览范围可通过环境变量调整，例如：
+
+```bash
+export FAST_CALIB_PREVIEW_MIN_X=1.0
+export FAST_CALIB_PREVIEW_MAX_X=5.0
+export FAST_CALIB_PREVIEW_MIN_Y=-2.0
+export FAST_CALIB_PREVIEW_MAX_Y=2.0
+export FAST_CALIB_PREVIEW_MIN_Z=-1.0
+export FAST_CALIB_PREVIEW_MAX_Z=3.0
+```
 
 ## 标定记录
 

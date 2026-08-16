@@ -3,17 +3,16 @@ set -euo pipefail
 
 usage() {
   cat >&2 <<'EOF'
-usage: interactive_calibration_from_bag.sh SCENE_NAME BAG_PATH IMAGE_TOPIC [LIDAR_TOPIC]
+用法：interactive_calibration_from_bag.sh 场景名 BAG路径 图像TOPIC [雷达TOPIC]
 
-Import a completed ROS 2 bag containing both LiDAR and camera messages, extract
-the temporal-middle camera frame, and continue through the static-cloud and RViz
-interactive calibration workflow.
+导入同时包含相机和 LiDAR 的 ROS 2 bag，提取时间中间位置的相机图像，
+然后进入“完整静态点云 → 多边形框选标定板 → 四球精修 → 外参计算”流程。
 
-Supported camera message types:
+支持的相机消息类型：
   sensor_msgs/msg/Image
   sensor_msgs/msg/CompressedImage
 
-Example:
+示例：
   ./scripts/interactive_calibration_from_bag.sh \
     offline_001 /data/calibration_bag /camera/image_raw /livox/lidar
 EOF
@@ -30,7 +29,7 @@ image_topic=$3
 lidar_topic=${4:-/livox/lidar}
 
 if [[ ! "$scene_name" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]]; then
-  echo "SCENE_NAME must contain only letters, digits, '.', '_' or '-'" >&2
+  echo "场景名只能包含字母、数字、点、下划线和连字符。" >&2
   exit 64
 fi
 
@@ -40,7 +39,7 @@ cd "$fast_calib_root"
 
 source_bag=$(realpath "$source_bag")
 if [[ ! -f "${source_bag}/metadata.yaml" ]]; then
-  echo "Not a ROS 2 bag directory: $source_bag" >&2
+  echo "该目录不是有效的 ROS 2 bag：$source_bag" >&2
   exit 66
 fi
 
@@ -52,7 +51,7 @@ config_path="${fast_calib_root}/config/qr_params_${scene_name}.yaml"
 base_config=${BASE_CONFIG:-${fast_calib_root}/config/qr_params.yaml}
 
 if [[ -e "$data_dir" || -e "$output_dir" || -e "$config_path" ]]; then
-  echo "Refusing to overwrite existing scene artifacts:" >&2
+  echo "为避免覆盖数据，检测到同名场景文件：" >&2
   [[ -e "$data_dir" ]] && echo "  $data_dir" >&2
   [[ -e "$output_dir" ]] && echo "  $output_dir" >&2
   [[ -e "$config_path" ]] && echo "  $config_path" >&2
@@ -69,14 +68,14 @@ elif [[ -f "${fast_calib_root}/install/setup.bash" ]]; then
 elif [[ -f "${fast_calib_root}/../../install/setup.bash" ]]; then
   source "${fast_calib_root}/../../install/setup.bash"
 else
-  echo "Cannot find workspace setup.bash. Build the package first or set ROS_WORKSPACE_SETUP." >&2
+  echo "找不到工作空间 setup.bash，请先构建或设置 ROS_WORKSPACE_SETUP。" >&2
   exit 69
 fi
 set -u
 
 mkdir -p "$data_dir" "$output_dir"
 
-echo "Importing rosbag: $source_bag"
+echo "正在导入 ROS 2 bag：$source_bag"
 if ! cp -al -- "$source_bag" "$bag_dir" 2>/dev/null; then
   cp -a --reflink=auto -- "$source_bag" "$bag_dir"
 fi
@@ -84,8 +83,8 @@ fi
 ros2 bag info "$bag_dir" | tee "${output_dir}/rosbag_info.txt"
 if ! grep -Fq "Topic: ${lidar_topic} | Type: sensor_msgs/msg/PointCloud2" \
   "${output_dir}/rosbag_info.txt"; then
-  echo "The bag does not contain ${lidar_topic} as sensor_msgs/msg/PointCloud2." >&2
-  echo "Inspect available topics in ${output_dir}/rosbag_info.txt" >&2
+  echo "bag 中没有 ${lidar_topic} [sensor_msgs/msg/PointCloud2]。" >&2
+  echo "可用 topic 已保存到：${output_dir}/rosbag_info.txt" >&2
   exit 65
 fi
 
@@ -118,9 +117,9 @@ for raw in src.read_text(encoding="utf-8").splitlines():
 dst.write_text("\n".join(lines) + "\n", encoding="utf-8")
 PY
 
-echo "Prepared offline scene config: $config_path"
+echo "离线场景配置已生成：$config_path"
 if [[ "${PREPARE_ONLY:-0}" == "1" ]]; then
-  echo "PREPARE_ONLY=1; offline scene preparation complete."
+  echo "PREPARE_ONLY=1，离线场景准备完成，不启动交互标定。"
   exit 0
 fi
 exec scripts/interactive_calibration_workflow.sh "$scene_name" --existing

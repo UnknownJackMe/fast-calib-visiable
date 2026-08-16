@@ -15,12 +15,19 @@
   <author email="zhengcr@connect.hku.hk">Chunran Zheng</author>
   
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>qtbase5-dev</build_depend>
   
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>visualization_msgs</depend>
   <depend>pcl_ros</depend>
   <depend>pcl_conversions</depend>
   <depend>rosbag2_cpp</depend>
+  <depend>pluginlib</depend>
+  <depend>rviz_common</depend>
+  <depend>rviz_rendering</depend>
+  <depend>rviz_ogre_vendor</depend>
 
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>interactive_markers</exec_depend>
@@ -29,6 +36,8 @@
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>rosbag2_py</exec_depend>
   <exec_depend>std_srvs</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
   <exec_depend>python3-scipy</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
