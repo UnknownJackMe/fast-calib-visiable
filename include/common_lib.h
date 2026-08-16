@@ -275,6 +275,7 @@ void saveCalibrationResults(const Params &params, const Eigen::Matrix4f &transfo
     outFile << "cam_d1: " << params.k2 << "\n";
     outFile << "cam_d2: " << params.p1 << "\n";
     outFile << "cam_d3: " << params.p2 << "\n";
+    outFile << "cam_d4: " << params.k3 << "\n";
 
     outFile << "\nRcl: [" << std::fixed << std::setprecision(6);
     outFile << std::setw(10) << transformation(0, 0) << ", " << std::setw(10) << transformation(0, 1) << ", " << std::setw(10) << transformation(0, 2) << ",\n";
