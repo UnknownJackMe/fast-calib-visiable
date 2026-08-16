@@ -67,7 +67,7 @@ using namespace pcl;
 struct Params
 {
   double x_min, x_max, y_min, y_max, z_min, z_max;
-  double fx, fy, cx, cy, k1, k2, p1, p2;
+  double fx, fy, cx, cy, k1, k2, p1, p2, k3;
   double marker_size, delta_width_qr_center, delta_height_qr_center;
   double delta_width_circles, delta_height_circles, circle_radius;
   int min_detected_markers;
@@ -93,6 +93,7 @@ Params loadParameters(rclcpp::Node::SharedPtr node)
   node->declare_parameter("k2", 0.10996870793601);
   node->declare_parameter("p1", 0.000157303079833973);
   node->declare_parameter("p2", 0.000544930726278493);
+  node->declare_parameter("k3", 0.0);
   node->declare_parameter("marker_size", 0.2);
   node->declare_parameter("delta_width_qr_center", 0.55);
   node->declare_parameter("delta_height_qr_center", 0.35);
@@ -124,6 +125,7 @@ Params loadParameters(rclcpp::Node::SharedPtr node)
   node->get_parameter_or("k2", params.k2, 0.10996870793601);
   node->get_parameter_or("p1", params.p1, 0.000157303079833973);
   node->get_parameter_or("p2", params.p2, 0.000544930726278493);
+  node->get_parameter_or("k3", params.k3, 0.0);
   node->get_parameter_or("marker_size", params.marker_size, 0.2);
   node->get_parameter_or("delta_width_qr_center", params.delta_width_qr_center, 0.55);
   node->get_parameter_or("delta_height_qr_center", params.delta_height_qr_center, 0.35);

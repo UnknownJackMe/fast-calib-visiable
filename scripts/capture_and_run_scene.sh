@@ -11,7 +11,7 @@ and the board-plane diagnostic.
 Environment overrides:
   CAMERA_SERIAL   Hikvision serial, default DA3217436
   EXPOSURE_US     Hikvision exposure, default 30000
-  GAIN            Hikvision gain, default 15
+  GAIN            Hikvision gain, default 8
   BASE_CONFIG     Source YAML to copy parameters from, default config/qr_params.yaml
 EOF
 }
@@ -25,7 +25,7 @@ scene_name=$1
 duration_s=${2:-25}
 camera_serial=${CAMERA_SERIAL:-DA3217436}
 exposure_us=${EXPOSURE_US:-30000}
-gain=${GAIN:-15}
+gain=${GAIN:-8}
 export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-77}
 
 if [[ ! "$scene_name" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]]; then

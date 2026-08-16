@@ -86,7 +86,8 @@ Do not source another application repository such as `moving_scaning_hku`. If `l
 Edit these files before collecting new data:
 
 - `config/livox_mid360_fast_calib.json`: MID360 IP and Livox connection settings
-- `config/qr_params.yaml`: camera intrinsics, target geometry, input/output defaults
+- `config/camera_params_hikvision_20260814.yaml`: source Hikvision calibration result
+- `config/qr_params.yaml`: active camera intrinsics, target geometry, input/output defaults
 
 The included MID360 launch file starts `livox_ros_driver2` and publishes `/livox/lidar` as `sensor_msgs/msg/PointCloud2`:
 

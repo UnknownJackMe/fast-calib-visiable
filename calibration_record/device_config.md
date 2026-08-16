@@ -62,29 +62,32 @@ ros2 run fast_calib grab_hikvision_png \
   /home/vision/FAST-Calib/calib_data/<scene>/image.png \
   DA3217436 \
   30000 \
-  15
+  8
 ```
 
-本次相机内参来源：
+当前相机内参来源（2026-08-14，51 张图，平均重投影误差约 0.071 px）：
 
 ```text
-/home/vision/moving_scaning_hku/experiments/extrinsic_calibration/fast_calib_camera_intrinsics_from_hik.yaml
+/home/vision/FAST-Calib/config/camera_params_hikvision_20260814.yaml
 ```
 
-本次使用的内参：
+当前新采集场景使用的内参：
 
 ```yaml
 cam_width: 1440
 cam_height: 1080
-cam_fx: 1794.9718035517628
-cam_fy: 1793.2320112446164
-cam_cx: 706.1001199725066
-cam_cy: 553.755812727975
-cam_d0: -0.06285874342909396
-cam_d1: 0.09027341759193216
-cam_d2: -0.00045026214372278844
-cam_d3: 0.0010035397470404036
+cam_fx: 1793.8419173990653
+cam_fy: 1793.8080728731852
+cam_cx: 704.449662990624
+cam_cy: 550.5285395821396
+cam_d0: -0.070460678323384
+cam_d1: 0.1318047353351998
+cam_d2: -0.0018212418630035034
+cam_d3: 0.0006867908135533604
+cam_d4: -0.005040654198261228
 ```
+
+`final_success_20260617` 等历史场景仍保留当时使用的旧内参，不应回写修改。
 
 ## 标定板参数
 
@@ -140,4 +143,3 @@ y_max: 0.80
 z_min: -0.60
 z_max: 1.50
 ```
-

@@ -1,15 +1,16 @@
 fast_calib:
   ros__parameters:
-    # Hikvision camera intrinsics from:
-    # /home/vision/moving_scaning_hku/experiments/extrinsic_calibration/fast_calib_camera_intrinsics_from_hik.yaml
-    fx: 1794.9718035517628
-    fy: 1793.2320112446164
-    cx: 706.1001199725066
-    cy: 553.755812727975
-    k1: -0.06285874342909396
-    k2: 0.09027341759193216
-    p1: -0.00045026214372278844
-    p2: 0.0010035397470404036
+    # Hikvision MV-CS016-10UC intrinsics calibrated on 2026-08-14.
+    # Source: config/camera_params_hikvision_20260814.yaml
+    fx: 1793.8419173990653
+    fy: 1793.8080728731852
+    cx: 704.449662990624
+    cy: 550.5285395821396
+    k1: -0.070460678323384
+    k2: 0.1318047353351998
+    p1: -0.0018212418630035034
+    p2: 0.0006867908135533604
+    k3: -0.005040654198261228
 
     # Calibration target parameters
     # Provisional diagnostic target metadata from:

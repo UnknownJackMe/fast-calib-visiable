@@ -1,0 +1,25 @@
+%YAML:1.0
+---
+camera_model: HIKROBOT MV-CS016-10UC
+image_width: 1440
+image_height: 1080
+board_cols: 11
+board_rows: 8
+square_size_mm: 45.
+sample_count: 51
+mean_reprojection_error_px: 7.1057173431290699e-02
+camera_matrix: !!opencv-matrix
+   rows: 3
+   cols: 3
+   dt: d
+   data: [ 1.7938419173990653e+03, 0., 7.0444966299062401e+02, 0.,
+       1.7938080728731852e+03, 5.5052853958213962e+02, 0., 0., 1. ]
+dist_coeffs: !!opencv-matrix
+   rows: 5
+   cols: 1
+   dt: d
+   data: [ -7.0460678323383999e-02, 1.3180473533519979e-01,
+       -1.8212418630035034e-03, 6.8679081355336037e-04,
+       -5.0406541982612281e-03 ]
+exposure_us: 30000.
+gain: 8.

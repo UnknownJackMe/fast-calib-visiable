@@ -94,7 +94,8 @@ public:
                      0, 0, 1);
 
     // Initialize distortion coefficients
-    distCoeffs_ = (cv::Mat_<float>(1, 5) << params.k1, params.k2, params.p1, params.p2, 0);
+    distCoeffs_ = (cv::Mat_<float>(1, 5)
+                   << params.k1, params.k2, params.p1, params.p2, params.k3);
 
     // Initialize QR dictionary
     dictionary_ = cv::aruco::getPredefinedDictionary(dictionaryNameToId(params.aruco_dictionary));
