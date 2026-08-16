@@ -26,6 +26,7 @@ duration_s=${2:-25}
 camera_serial=${CAMERA_SERIAL:-DA3217436}
 exposure_us=${EXPOSURE_US:-30000}
 gain=${GAIN:-15}
+export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-77}
 
 if [[ ! "$scene_name" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]]; then
   echo "SCENE_NAME must contain only letters, digits, '.', '_' or '-', and must not start with '-'" >&2
@@ -105,7 +106,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! ros2 topic list -t | grep -q '^/livox/lidar \[sensor_msgs/msg/PointCloud2\]$'; then
+if ! ros2 topic list --no-daemon -t 2>/dev/null \
+  | grep -Eq '^/livox/lidar \[[^]]*sensor_msgs/msg/PointCloud2'; then
   if ip route get "$lidar_ip" 2>/dev/null | grep -q '^local .* dev lo'; then
     {
       echo "LiDAR IP $lidar_ip is currently assigned to this host, so the Livox driver cannot reach the sensor."
@@ -122,12 +124,23 @@ if ! ros2 topic list -t | grep -q '^/livox/lidar \[sensor_msgs/msg/PointCloud2\]
 fi
 
 echo "Waiting for /livox/lidar PointCloud2..."
-timeout 20 bash -lc '
-  source /opt/ros/humble/setup.bash
-  until ros2 topic list -t | grep -q "^/livox/lidar \\[sensor_msgs/msg/PointCloud2\\]$"; do
+set +e
+timeout 30 bash -c '
+  until ros2 topic list --no-daemon -t 2>/dev/null \
+    | grep -Eq "^/livox/lidar \\[[^]]*sensor_msgs/msg/PointCloud2"; do
     sleep 1
   done
 '
+topic_wait_status=$?
+set -e
+if [[ "$topic_wait_status" -ne 0 ]]; then
+  echo "Timed out waiting for /livox/lidar PointCloud2 on ROS_DOMAIN_ID=${ROS_DOMAIN_ID}." >&2
+  if [[ -f "${output_dir}/livox_driver.log" ]]; then
+    echo "Last Livox driver log lines:" >&2
+    tail -n 40 "${output_dir}/livox_driver.log" >&2
+  fi
+  exit 76
+fi
 
 set +e
 timeout --foreground --signal=INT --kill-after=5s 8 ros2 topic hz /livox/lidar >"${output_dir}/livox_hz.txt" 2>&1 </dev/null

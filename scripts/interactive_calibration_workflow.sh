@@ -25,6 +25,7 @@ fi
 
 scene_name=$1
 duration_s=${2:-25}
+export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-77}
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 fast_calib_root=${FAST_CALIB_ROOT:-$(cd "${script_dir}/.." && pwd)}
 cd "$fast_calib_root"
@@ -201,6 +202,7 @@ When done, save the positions from another terminal:
 
   cd "$fast_calib_root"
   source /opt/ros/humble/setup.bash
+  export ROS_DOMAIN_ID=$ROS_DOMAIN_ID
   ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
 
 Saved centers file:
