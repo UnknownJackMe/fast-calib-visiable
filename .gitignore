@@ -17,3 +17,10 @@ build/*
 install/*
 log/*
 MvSdkLog/*
+
+# Keep only the final refined output for the scene_002_light calibration result.
+!output/scene_002_light_refined_four_holes/
+output/scene_002_light_refined_four_holes/*
+!output/scene_002_light_refined_four_holes/calib_result.txt
+!output/scene_002_light_refined_four_holes/colored_cloud.pcd
+!output/scene_002_light_refined_four_holes/colored_cloud.ply
