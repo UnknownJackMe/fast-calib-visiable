@@ -157,28 +157,32 @@ output/<scene>_manual_four_holes/calib_result.txt
 
 静态标定可以将相机和雷达一起录进同一个 ROS 2 bag，撤掉标定板后再离线处理。录制期间相机、雷达和标定板必须保持静止。
 
-如果相机已经发布为 ROS image topic，可以这样录制：
+推荐使用一键录包脚本。它会清理旧的标定发布进程、启动 MID360 和海康相机、
+检查两个 topic 确实有消息，然后只录制这两个 topic：
 
 ```bash
-export ROS_DOMAIN_ID=77
-ros2 topic list --no-daemon -t | grep -E 'livox|camera|image'
+cd ~/FAST-Calib
+source /opt/ros/humble/setup.bash
+source install/setup.bash
 
-ros2 bag record \
-  /livox/lidar \
-  /camera/image_raw \
-  -o ~/calibration_bags/scene_001
+./scripts/record_calibration_bag.sh ~/calibration_bags/scene_001
 ```
 
-撤板前检查 bag：
+开始录制后按一次 Ctrl+C。脚本会自动：
 
-```bash
-ros2 bag info ~/calibration_bags/scene_001
-```
+1. 等待 rosbag 刷新缓存并写入 metadata；
+2. 停止 MID360 和海康相机发布节点；
+3. 检查两个 topic 的消息数量不为 0；
+4. 从 bag 解码一张相机图验证图像有效；
+5. 将验证结果写入 `<bag_path>_verification/`。
 
 bag 必须包含：
 
 - 一个 `sensor_msgs/msg/PointCloud2` 类型的雷达 topic；
 - 一个 `sensor_msgs/msg/Image` 或 `sensor_msgs/msg/CompressedImage` 类型的相机 topic。
+
+默认相机参数为 `1440×1080`、曝光 `30000 us`、增益 `8`、发布频率 1 Hz；
+MID360 PointCloud2 通常约为 10 Hz。
 
 导入已录制的合并 bag：
 
@@ -205,9 +209,8 @@ source install/setup.bash
 
 相机 topic 可以连续录制，但当前静态标定算法最终只使用其中一张图像。
 
-注意：本项目自带的 `grab_hikvision_png` 是单张抓图工具，不会持续发布 ROS
-相机 topic。录合并 bag 前必须先启动相机发布节点，并在 topic 列表中确认相机
-消息类型为 `sensor_msgs/msg/Image` 或 `sensor_msgs/msg/CompressedImage`。
+一键脚本会使用本项目新增的 `hikvision_image_publisher` 发布
+`/camera/image_raw`，不需要另外启动相机节点。
 
 如果只想导入和检查数据，不启动处理与 RViz：
 

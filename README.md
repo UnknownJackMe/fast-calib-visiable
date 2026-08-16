@@ -175,29 +175,34 @@ For a static calibration scene, it is valid to record the LiDAR and camera in
 one ROS 2 bag and perform all processing after the target has been removed. The
 camera, LiDAR, and target must remain stationary for the whole recording.
 
-Example recording command, when the camera is published as a ROS image topic:
+The recommended recorder starts both sensor publishers, isolates them in ROS
+Domain 77, checks for actual messages, records only the two calibration topics,
+and validates the bag after Ctrl+C:
 
 ```bash
-export ROS_DOMAIN_ID=77
-ros2 topic list --no-daemon -t | grep -E 'livox|camera|image'
+cd ~/FAST-Calib
+source /opt/ros/humble/setup.bash
+source install/setup.bash
 
-ros2 bag record \
-  /livox/lidar \
-  /camera/image_raw \
-  -o ~/calibration_bags/scene_001
+./scripts/record_calibration_bag.sh ~/calibration_bags/scene_001
 ```
 
-Confirm the recorded topic names and message types:
+Press Ctrl+C once to stop. The script will wait for rosbag to flush, stop the
+MID360 and Hikvision publishers, verify nonzero message counts for both topics,
+and decode a sample camera frame. Verification artifacts are written to:
 
-```bash
-ros2 bag info ~/calibration_bags/scene_001
+```text
+~/calibration_bags/scene_001_verification/
 ```
 
-The bag must contain:
+The resulting bag contains:
 
 - a LiDAR topic with type `sensor_msgs/msg/PointCloud2`;
 - a camera topic with type `sensor_msgs/msg/Image` or
   `sensor_msgs/msg/CompressedImage`.
+
+The Hikvision publisher defaults to `1440x1080`, exposure `30000 us`, gain `8`,
+and 1 Hz. MID360 PointCloud2 is normally published at approximately 10 Hz.
 
 Import the completed bag and start the same static-cloud/RViz workflow:
 

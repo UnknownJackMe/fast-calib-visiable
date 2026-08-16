@@ -33,6 +33,7 @@ endif()
 # Create executable
 add_executable(fast_calib src/main.cpp)
 add_executable(grab_hikvision_png tools/grab_hikvision_png.cpp)
+add_executable(hikvision_image_publisher tools/hikvision_image_publisher.cpp)
 add_executable(set_livox_ip tools/set_livox_ip.cpp)
 add_executable(manual_lidar_centers_calib tools/manual_lidar_centers_calib.cpp)
 
@@ -66,6 +67,27 @@ target_include_directories(grab_hikvision_png PRIVATE
   ${OpenCV_INCLUDE_DIRS}
 )
 
+ament_target_dependencies(hikvision_image_publisher
+  rclcpp
+  sensor_msgs
+)
+
+target_include_directories(hikvision_image_publisher PRIVATE
+  /opt/MVS/include
+  ${OpenCV_INCLUDE_DIRS}
+)
+
+target_link_directories(hikvision_image_publisher PRIVATE /opt/MVS/lib/64)
+
+target_link_libraries(hikvision_image_publisher
+  ${OpenCV_LIBRARIES}
+  MvCameraControl
+)
+
+set_target_properties(hikvision_image_publisher PROPERTIES
+  INSTALL_RPATH "/opt/MVS/lib/64"
+)
+
 target_link_directories(grab_hikvision_png PRIVATE /opt/MVS/lib/64)
 
 target_link_libraries(grab_hikvision_png
@@ -85,6 +107,7 @@ target_link_libraries(set_livox_ip
 install(TARGETS
   fast_calib
   grab_hikvision_png
+  hikvision_image_publisher
   set_livox_ip
   manual_lidar_centers_calib
   DESTINATION lib/${PROJECT_NAME}
@@ -99,6 +122,7 @@ install(PROGRAMS
   scripts/interactive_lidar_hole_editor.py
   scripts/publish_detected_holes.py
   scripts/publish_static_cloud_with_holes.py
+  scripts/record_calibration_bag.sh
   scripts/run_fast_calib_scene.sh
   DESTINATION lib/${PROJECT_NAME}
 )

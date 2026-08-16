@@ -142,3 +142,12 @@ centers:
 ```
 
 当前静态标定最终只使用相机 topic 中的一张图像。录制期间相机、雷达和标定板必须保持静止。
+
+推荐使用一键录制脚本生成合并 bag：
+
+```bash
+./scripts/record_calibration_bag.sh ~/calibration_bags/<bag_name>
+```
+
+脚本启动并检查 `/livox/lidar` 与 `/camera/image_raw`，按 Ctrl+C 后自动刷盘、
+停止两个发布节点、检查消息数量并解码一张相机图。
