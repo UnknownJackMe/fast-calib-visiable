@@ -1,0 +1,45 @@
+fast_calib:
+  ros__parameters:
+    # Hikvision camera intrinsics from:
+    # /home/vision/moving_scaning_hku/experiments/extrinsic_calibration/fast_calib_camera_intrinsics_from_hik.yaml
+    fx: 1794.9718035517628
+    fy: 1793.2320112446164
+    cx: 706.1001199725066
+    cy: 553.755812727975
+    k1: -0.06285874342909396
+    k2: 0.09027341759193216
+    p1: -0.00045026214372278844
+    p2: 0.0010035397470404036
+
+    # Calibration target parameters
+    # Provisional diagnostic target metadata from:
+    # /home/vision/moving_scaning_hku/experiments/extrinsic_calibration/target_measurement_phase1_46_provisional.yaml
+    aruco_dictionary: "DICT_4X4_50"
+    aruco_ids: [0, 1, 3, 2] # top-left, top-right, bottom-right, bottom-left
+    min_detected_markers: 3
+    marker_size: 0.200
+    delta_width_qr_center: 0.550
+    delta_height_qr_center: 0.350
+    delta_width_circles: 0.500
+    delta_height_circles: 0.400
+    circle_radius: 0.120
+    cluster_tolerance: 0.05
+    cluster_min_size: 10
+    cluster_max_size: 2000
+
+    # Distance filter
+    # Tune these for each static scene so only the target board remains.
+    x_min: 2.20
+    x_max: 4.40
+    y_min: -0.80
+    y_max: 0.80
+    z_min: -0.60
+    z_max: 1.50
+
+    # Input
+    lidar_topic: "/livox/lidar"
+    bag_path: "/home/vision/FAST-Calib/calib_data/test1/lidar_bag"
+    image_path: "/home/vision/FAST-Calib/calib_data/test1/image.png"
+
+    # Output
+    output_path: "/home/vision/FAST-Calib/output/test1"

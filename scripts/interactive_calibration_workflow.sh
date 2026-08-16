@@ -7,17 +7,17 @@ usage: interactive_calibration_workflow.sh SCENE_NAME [DURATION_S]
        interactive_calibration_workflow.sh SCENE_NAME --existing
 
 Capture one image + MID360 bag, generate a static accumulated cloud, open RViz
-with four draggable LiDAR hole spheres, save the edited sphere centers, and run
-manual-center FAST-Calib.
+with four draggable rough-seed spheres, refine the true hole centers from local
+point-cloud geometry, and run calibration only after validation passes.
 
 Use --existing when calib_data/SCENE_NAME and config/qr_params_SCENE_NAME.yaml
 have already been prepared from an existing rosbag.
 
 After RViz opens:
   1. Set the RViz tool to Interact.
-  2. Drag the four colored spheres onto the four calibration-board holes.
+  2. Drag each colored sphere near its corresponding calibration-board hole.
   3. In another terminal, run:
-       ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
+       ros2 service call /save_lidar_hole_seeds std_srvs/srv/Trigger {}
   4. Return to this terminal and press Enter.
 EOF
 }
@@ -45,9 +45,15 @@ data_dir="${fast_calib_root}/calib_data/${scene_name}"
 output_dir="${fast_calib_root}/output/${scene_name}"
 config_path="${fast_calib_root}/config/qr_params_${scene_name}.yaml"
 static_cloud="${output_dir}/filtered_cloud.ply"
-centers_file="${output_dir}/manual_lidar_holes.yaml"
+plane_cloud="${output_dir}/plane_cloud.ply"
+seeds_file="${output_dir}/manual_lidar_hole_seeds.yaml"
+legacy_centers_file="${output_dir}/manual_lidar_holes.yaml"
+refined_centers_file="${output_dir}/refined_lidar_holes.yaml"
+refinement_report="${output_dir}/hole_refinement_report.yaml"
+refinement_debug_dir="${output_dir}/refinement_debug"
+refinement_config="${fast_calib_root}/config/hole_refinement_params.yaml"
 rviz_file="${output_dir}/manual_lidar_hole_editor.rviz"
-manual_output_dir="${fast_calib_root}/output/${scene_name}_manual_four_holes"
+manual_output_dir="${fast_calib_root}/output/${scene_name}_refined_four_holes"
 
 set +u
 source /opt/ros/humble/setup.bash
@@ -161,6 +167,19 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /manual_lidar_holes/update
       Value: true
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: Refined Hole Centers
+      Namespaces:
+        refined_lidar_hole_labels: true
+        refined_lidar_holes: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /refined_lidar_hole_markers
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 18; 18; 18
@@ -204,10 +223,15 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Starting interactive LiDAR hole editor..."
+initial_centers_file="$seeds_file"
+if [[ ! -f "$initial_centers_file" && -f "$legacy_centers_file" ]]; then
+  initial_centers_file="$legacy_centers_file"
+fi
 python3 scripts/interactive_lidar_hole_editor.py \
   --cloud "$static_cloud" \
-  --output "$centers_file" \
-  --initial-centers "$centers_file" \
+  --output "$seeds_file" \
+  --initial-centers "$initial_centers_file" \
+  --refined-centers "$refined_centers_file" \
   --rate 0.2 >"${output_dir}/interactive_lidar_hole_editor.log" 2>&1 &
 editor_pid=$!
 
@@ -221,40 +245,81 @@ cat <<EOF
 
 RViz is open.
 
-Move the four colored spheres onto the four physical holes in the static cloud.
-When done, save the positions from another terminal:
+Move each colored sphere near its corresponding physical hole. These are rough
+search seeds; mouse-level precision is not required.
+
+You can save the seeds manually from another terminal, or simply return here
+and press Enter:
 
   cd "$fast_calib_root"
   source /opt/ros/humble/setup.bash
   export ROS_DOMAIN_ID=$ROS_DOMAIN_ID
-  ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
+  ros2 service call /save_lidar_hole_seeds std_srvs/srv/Trigger {}
 
-Saved centers file:
-  $centers_file
+Rough seed file:
+  $seeds_file
+
+Refined centers will appear as smaller green spheres after successful fitting.
 
 EOF
 
-read -r -p "After saving the four spheres, press Enter here to run calibration..."
+while true; do
+  read -r -p "After roughly placing the four spheres, press Enter to refine them..."
 
-set +e
-ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {} >/dev/null 2>&1
-set -e
+  set +e
+  ros2 service call /save_lidar_hole_seeds std_srvs/srv/Trigger {} >/dev/null 2>&1
+  save_status=$?
+  set -e
+  if [[ "$save_status" -ne 0 || ! -f "$seeds_file" ]]; then
+    echo "Failed to save rough seeds: $seeds_file" >&2
+    exit 74
+  fi
 
-if [[ ! -f "$centers_file" ]]; then
-  echo "Manual centers file does not exist: $centers_file" >&2
+  echo "Refining LiDAR hole centers from local point-cloud geometry..."
+  set +e
+  python3 scripts/refine_lidar_hole_seeds.py \
+    --plane-cloud "$plane_cloud" \
+    --filtered-cloud "$static_cloud" \
+    --seeds "$seeds_file" \
+    --config "$refinement_config" \
+    --output "$refined_centers_file" \
+    --report "$refinement_report" \
+    --debug-dir "$refinement_debug_dir"
+  refinement_status=$?
+  set -e
+
+  if [[ "$refinement_status" -eq 0 ]]; then
+    echo
+    echo "Refinement passed. Green spheres show the fitted LiDAR hole centers."
+    read -r -p "Press Enter to accept, or type r then Enter to reposition seeds: " decision
+    if [[ "${decision:-}" != "r" && "${decision:-}" != "R" ]]; then
+      break
+    fi
+  else
+    echo
+    echo "Refinement failed. Review: $refinement_report" >&2
+    read -r -p "Adjust the failed rough seeds and press Enter to retry, or type q to stop: " decision
+    if [[ "${decision:-}" == "q" || "${decision:-}" == "Q" ]]; then
+      exit 75
+    fi
+  fi
+done
+
+if [[ ! -f "$refined_centers_file" ]]; then
+  echo "Refined centers file does not exist: $refined_centers_file" >&2
   exit 74
 fi
 
-echo "Running manual-center calibration..."
+echo "Running refined-center calibration..."
 clean_ld=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
 env LD_LIBRARY_PATH="$clean_ld" ros2 run fast_calib manual_lidar_centers_calib \
   --ros-args \
   --params-file "$config_path" \
-  -p manual_lidar_centers_path:="$centers_file" \
+  -p manual_lidar_centers_path:="$refined_centers_file" \
   -p output_path:="$manual_output_dir"
 
 echo
-echo "Manual calibration output:"
+echo "Refined calibration output:"
 echo "  $manual_output_dir"
 echo "Result:"
 echo "  $manual_output_dir/calib_result.txt"

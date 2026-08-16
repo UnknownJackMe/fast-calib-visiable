@@ -8,9 +8,10 @@
 
 - 采集一张海康相机图像和一段 MID360 `PointCloud2`；
 - 运行 FAST-Calib，提取相机观测并累计静态雷达点云；
-- 在 RViz2 中显示静态点云和四个可交互小球；
+- 在 RViz2 中显示静态点云和四个可独立移动的小球；
+- 每个小球都能沿 LiDAR X/Y/Z 三轴自由移动，支持雷达或标定板倾斜安装；
 - 使用小球标记标定板四个孔的大致位置；
-- 保存标记结果并继续计算相机与雷达外参。
+- 自动精修真实孔心并仅使用验证通过的孔心计算外参。
 
 本仓库按独立开源项目维护。使用时应加载本工作区的
 `install/setup.bash`，不应依赖其他业务项目的 install 空间。
@@ -43,6 +44,7 @@ sudo apt install -y \
   ros-humble-interactive-markers \
   python3-colcon-common-extensions \
   python3-yaml \
+  python3-scipy \
   libopencv-dev \
   libpcl-dev
 ```
@@ -121,8 +123,10 @@ source install/setup.bash
 4. 生成累计静态点云 `output/<scene>/filtered_cloud.ply`；
 5. 启动四球交互编辑器；
 6. 打开 RViz2；
-7. 保存四个孔的大致位置；
-8. 继续执行后续标定。
+7. 保存四个孔的大致 seed；
+8. 在每个 seed 附近自动拟合真实孔心；
+9. 验证四孔 `0.500 × 0.400 m` 几何；
+10. 只使用验证通过的精修孔心计算外参。
 
 RViz2 示例：
 
@@ -132,15 +136,15 @@ RViz2 示例：
 
 ![RViz2 小球调整](docs/assets/rviz_interactive_adjustment.png)
 
-在 RViz2 中选择 `Interact` 工具，然后拖动四个彩色小球。完成后在另一个终端保存：
+在 RViz2 中选择 `Interact` 工具，将每个彩色球拖到对应孔附近即可，不需要手工精确对心。每个球都有独立的 `move_x`、`move_y` 和 `move_z` 手柄，可分别调整前后、左右和上下位置。雷达或标定板倾斜时，四个粗球不需要保持水平、垂直或相同深度。返回主流程终端按 Enter，或者在另一个终端保存 rough seeds：
 
 ```bash
 source /opt/ros/humble/setup.bash
 export ROS_DOMAIN_ID=77
-ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
+ros2 service call /save_lidar_hole_seeds std_srvs/srv/Trigger {}
 ```
 
-返回主流程终端按 Enter。
+程序会先在三维点云中估计任意朝向的标定板平面，再在 seed 周围自动搜索板面空洞、拟合圆孔并验证四孔几何。因此支持约 45° 倾斜安装。成功孔心显示为更小的绿色球；失败时返回同一个 RViz 界面调整 seed。粗球不会再直接参与外参计算。孔位标签表示标定板上的对应关系，不要求孔沿 LiDAR 坐标轴排列。
 
 生成文件：
 
@@ -149,8 +153,11 @@ calib_data/<scene>/image.png
 calib_data/<scene>/lidar_bag/
 config/qr_params_<scene>.yaml
 output/<scene>/filtered_cloud.ply
-output/<scene>/manual_lidar_holes.yaml
-output/<scene>_manual_four_holes/calib_result.txt
+output/<scene>/manual_lidar_hole_seeds.yaml
+output/<scene>/refined_lidar_holes.yaml
+output/<scene>/hole_refinement_report.yaml
+output/<scene>/refinement_debug/
+output/<scene>_refined_four_holes/calib_result.txt
 ```
 
 ## 从相机和雷达合并 Rosbag 离线标定
@@ -251,7 +258,8 @@ undefined symbol: libusb_set_option
 
 - Display 必须是 `rviz_default_plugins/InteractiveMarkers`；
 - `Interactive Markers Namespace` 必须是 `/manual_lidar_holes`；
-- 当前工具必须选择 `Interact`。
+- 当前工具必须选择 `Interact`；
+- 前后深度不容易直接拖动时，点击彩色球并使用 `move_x`、`move_y`、`move_z` 三轴手柄。
 
 ## 标定记录
 

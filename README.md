@@ -8,9 +8,11 @@ This project packages a practical FAST-Calib workflow for static target calibrat
 
 - capture one Hikvision image and one MID360 `sensor_msgs/msg/PointCloud2` bag;
 - run FAST-Calib to extract camera observations and a static accumulated LiDAR cloud;
-- open RViz2 with four directly draggable interactive spheres;
-- let the operator place the spheres on the four physical board holes;
-- save the LiDAR hole centers and solve the LiDAR-camera extrinsic parameters.
+- open RViz2 with four independently movable rough-seed spheres;
+- move every seed freely along LiDAR X/Y/Z near its corresponding board hole,
+  including scenes where the LiDAR or target is tilted;
+- refine the four hole centers from local point-cloud geometry;
+- validate the known four-hole rectangle before solving the extrinsic parameters.
 
 The repository is intended to be usable as a standalone open-source project. You should source this workspace's `install/setup.bash`, not another project's install space.
 
@@ -44,6 +46,7 @@ sudo apt install -y \
   ros-humble-interactive-markers \
   python3-colcon-common-extensions \
   python3-yaml \
+  python3-scipy \
   libopencv-dev \
   libpcl-dev
 ```
@@ -128,8 +131,10 @@ The script will:
 4. run FAST-Calib once to create `output/<scene>/filtered_cloud.ply`;
 5. start `scripts/interactive_lidar_hole_editor.py`;
 6. open RViz2 with `output/<scene>/manual_lidar_hole_editor.rviz`;
-7. wait for you to place and save the four hole centers;
-8. run `manual_lidar_centers_calib` and write the final result.
+7. save four approximate hole seeds;
+8. fit and validate the true LiDAR hole centers near those seeds;
+9. show refined centers as smaller green spheres;
+10. calculate the extrinsic parameters only from validated refined centers.
 
 Example RViz2 views:
 
@@ -142,15 +147,28 @@ Example RViz2 views:
 In RViz2:
 
 1. Select the `Interact` tool.
-2. Drag the four colored spheres directly onto the four physical holes.
-3. Save the positions from another terminal:
+2. Drag each colored sphere near its corresponding physical hole. Mouse-level precision is not required.
+3. Use the sphere's `move_x`, `move_y`, and `move_z` handles for explicit
+   forward/backward, left/right, and up/down adjustment.
+4. Each sphere is independent. The four rough seeds do not need to remain
+   horizontal, vertical, or at the same LiDAR-frame depth when the sensor or
+   calibration target is tilted.
+5. Return to the workflow terminal and press Enter, or save the rough seeds manually:
 
 ```bash
 source /opt/ros/humble/setup.bash
-ros2 service call /save_lidar_hole_markers std_srvs/srv/Trigger {}
+ros2 service call /save_lidar_hole_seeds std_srvs/srv/Trigger {}
 ```
 
-Then return to the workflow terminal and press Enter.
+The local refiner searches the board plane around each seed, fits the circular
+empty region, checks the `0.500 x 0.400 m` layout, and displays successful
+centers as green spheres. Failed refinement returns to the same RViz editor for
+seed adjustment; rough seeds are never silently used as final centers.
+
+The hole labels describe correspondence on the calibration target, not a
+required alignment with the LiDAR coordinate axes. The refiner estimates the
+target plane in 3D before fitting the holes, so an approximately 45-degree
+LiDAR or target installation is supported.
 
 If your workspace setup file is not in one of the standard locations above, set it explicitly:
 
@@ -165,8 +183,11 @@ calib_data/<scene>/image.png
 calib_data/<scene>/lidar_bag/
 config/qr_params_<scene>.yaml
 output/<scene>/filtered_cloud.ply
-output/<scene>/manual_lidar_holes.yaml
-output/<scene>_manual_four_holes/calib_result.txt
+output/<scene>/manual_lidar_hole_seeds.yaml
+output/<scene>/refined_lidar_holes.yaml
+output/<scene>/hole_refinement_report.yaml
+output/<scene>/refinement_debug/
+output/<scene>_refined_four_holes/calib_result.txt
 ```
 
 ## Offline Calibration from a Combined Rosbag
@@ -250,15 +271,15 @@ source install/setup.bash
 ./scripts/run_fast_calib_scene.sh config/qr_params_<scene>.yaml
 ```
 
-For manual LiDAR centers:
+For already validated refined LiDAR centers:
 
 ```bash
 CLEAN_LD=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
 env LD_LIBRARY_PATH="$CLEAN_LD" ros2 run fast_calib manual_lidar_centers_calib \
   --ros-args \
   --params-file config/qr_params_<scene>.yaml \
-  -p manual_lidar_centers_path:=output/<scene>/manual_lidar_holes.yaml \
-  -p output_path:=output/<scene>_manual_four_holes
+  -p manual_lidar_centers_path:=output/<scene>/refined_lidar_holes.yaml \
+  -p output_path:=output/<scene>_refined_four_holes
 ```
 
 ## Troubleshooting
@@ -275,7 +296,9 @@ If RViz2 shows the cloud but the spheres are not draggable:
 
 - the display must be `rviz_default_plugins/InteractiveMarkers`;
 - `Interactive Markers Namespace` must be `/manual_lidar_holes`;
-- the active RViz tool must be `Interact`.
+- the active RViz tool must be `Interact`;
+- select a colored sphere and use `move_x`, `move_y`, or `move_z` when depth
+  motion is difficult with direct sphere dragging.
 
 If `/livox/lidar` is missing, verify:
 

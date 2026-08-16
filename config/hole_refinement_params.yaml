@@ -1,0 +1,27 @@
+hole_refinement:
+  plane_ransac_distance_threshold: 0.012
+  plane_ransac_iterations: 600
+  plane_ransac_min_inliers: 500
+  search_radius_u: 0.20
+  search_radius_v: 0.20
+  grid_step: 0.005
+  min_clearance: 0.055
+  max_clearance: 0.160
+  boundary_search_radius: 0.180
+  boundary_min_radius: 0.055
+  boundary_max_radius: 0.175
+  angular_bins: 72
+  min_boundary_bins: 24
+  expected_radius: 0.120
+  min_fitted_radius: 0.075
+  max_fitted_radius: 0.155
+  max_radial_rmse: 0.015
+  max_seed_distance: 0.25
+  max_candidates_per_seed: 12
+  max_grid_candidates: 800
+  candidate_dedup_distance: 0.018
+  expected_width: 0.500
+  expected_height: 0.400
+  max_width_error: 0.035
+  max_height_error: 0.035
+  max_diagonal_error: 0.045

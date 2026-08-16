@@ -1,118 +1,6 @@
 # 下次重新标定快速流程
 
-## 1. 准备环境
-
-```bash
-cd /home/vision/FAST-Calib
-source /opt/ros/humble/setup.bash
-source /home/vision/moving_scaning_hku/ros2_livox_ws/install/setup.bash
-source install/setup.bash
-```
-
-如果运行 FAST-Calib 时遇到 `libusb_set_option` 之类错误，先清理 MVS SDK 带来的旧 libusb：
-
-```bash
-CLEAN_LD=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
-```
-
-## 2. 启动 MID360
-
-```bash
-ros2 launch fast_calib mid360_pointcloud2_launch.py
-```
-
-确认：
-
-```bash
-ros2 topic list -t | grep /livox/lidar
-```
-
-期望：
-
-```text
-/livox/lidar [sensor_msgs/msg/PointCloud2]
-```
-
-## 3. 采集一个新场景
-
-推荐每次换一个 scene 名，避免覆盖旧结果：
-
-```bash
-cd /home/vision/FAST-Calib
-scripts/capture_and_run_scene.sh <scene_name> 25
-```
-
-例如：
-
-```bash
-scripts/capture_and_run_scene.sh current_static_pair_new 25
-```
-
-脚本会完成：
-
-- 抓一张 Hikvision 图像；
-- 录制 `/livox/lidar` bag；
-- 生成 `config/qr_params_<scene_name>.yaml`；
-- 运行 FAST-Calib；
-- 运行离线诊断。
-
-## 4. 如果自动 LiDAR 检测失败
-
-常见现象：
-
-```text
-Expected 4 LiDAR circle centers, got 2
-```
-
-这次最终就是自动检测只抓到上排两个孔。处理方法是：
-
-1. 用累计静态点云显示，不播放实时 bag。
-2. 在 RViz 里人工确认四个孔。
-3. 用 `manual_lidar_centers_calib` 手工四孔版本出外参。
-
-现在推荐直接使用可视化交互流程：
-
-```bash
-scripts/interactive_calibration_workflow.sh <scene_name> 25
-```
-
-它会自动采集、生成静态点云、打开 RViz 四球编辑器，并在保存球心后继续出外参。详细说明见 `calibration_record/interactive_workflow.md`。
-
-启动静态点云 + 孔位显示：
-
-```bash
-cd /home/vision/FAST-Calib
-source /opt/ros/humble/setup.bash
-python3 scripts/publish_static_cloud_with_holes.py \
-  --cloud output/final_success_20260617/filtered_cloud.ply \
-  --rate 0.2
-```
-
-另一个终端打开 RViz：
-
-```bash
-source /opt/ros/humble/setup.bash
-rviz2 -d /home/vision/FAST-Calib/rviz_cfg/static_accumulated_holes.rviz
-```
-
-本次确认的四个 LiDAR 孔中心：
-
-```text
-upper +Y: x=3.57454, y= 0.07096, z= 0.11873
-upper -Y: x=3.55390, y=-0.43180, z= 0.14098
-lower +Y: x=3.54801, y= 0.06100, z=-0.27500
-lower -Y: x=3.52758, y=-0.45020, z=-0.25500
-```
-
-## 5. 用四个手工孔位出外参
-
-手工四孔工具已经加入工程：
-
-```text
-tools/manual_lidar_centers_calib.cpp
-```
-
-编译：
+## 1. 构建与环境
 
 ```bash
 cd /home/vision/FAST-Calib
@@ -121,34 +9,91 @@ colcon build --packages-select fast_calib --cmake-args -DCMAKE_BUILD_TYPE=Releas
 source install/setup.bash
 ```
 
-运行示例：
+## 2. 推荐：一键录制相机和 LiDAR 合并 bag
 
 ```bash
-mkdir -p output/<scene_name>_manual_four_holes
-
-CLEAN_LD=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
-
-env LD_LIBRARY_PATH="$CLEAN_LD" ros2 run fast_calib manual_lidar_centers_calib \
-  --ros-args \
-  --params-file config/qr_params_<scene_name>.yaml \
-  -p output_path:=/home/vision/FAST-Calib/output/<scene_name>_manual_four_holes
+./scripts/record_calibration_bag.sh \
+  /home/vision/calibration_bags/<bag_name>
 ```
 
-输出文件：
+看到两个 topic 检查通过后录制约 25 秒，按一次 Ctrl+C。脚本会自动刷盘、停止传感器并验证 bag。
+
+## 3. 从合并 bag 进入标定
+
+```bash
+./scripts/interactive_calibration_from_bag.sh \
+  <scene_name> \
+  /home/vision/calibration_bags/<bag_name> \
+  /camera/image_raw \
+  /livox/lidar
+```
+
+如果不使用合并 bag，也可以现场抓一张图并录 LiDAR：
+
+```bash
+./scripts/interactive_calibration_workflow.sh <scene_name> 25
+```
+
+## 4. RViz 四球操作
+
+1. 选择 `Interact`；
+2. 将四个彩色球分别拖到对应孔附近；
+3. 不需要精确对心，小球只是 rough seeds；
+4. 雷达或标定板倾斜时，使用每个球的 X/Y/Z 三轴手柄分别调整前后、左右和上下位置；
+5. 四个球互不约束，不要求在 LiDAR 坐标系中保持水平、垂直或相同深度；
+6. 回到主终端按 Enter。
+
+程序会自动：
+
+- 在每个 seed 附近搜索板面空洞；
+- 拟合真实圆孔中心和半径；
+- 验证 `0.500 × 0.400 m` 四孔几何；
+- 在 RViz 中显示更小的绿色 refined centers。
+
+精修失败时调整对应 seed 后重试，不需要重新采集。
+
+## 5. 输出
 
 ```text
-output/<scene_name>_manual_four_holes/calib_result.txt
-output/<scene_name>_manual_four_holes/colored_cloud.pcd
-output/<scene_name>_manual_four_holes/colored_cloud.ply
-output/<scene_name>_manual_four_holes/qr_detect.png
+output/<scene>/manual_lidar_hole_seeds.yaml
+output/<scene>/refined_lidar_holes.yaml
+output/<scene>/hole_refinement_report.yaml
+output/<scene>/refinement_debug/
+output/<scene>_refined_four_holes/calib_result.txt
 ```
 
-## 6. 验收标准
+## 6. 已有场景重新进入
 
-至少检查：
+```bash
+./scripts/interactive_calibration_workflow.sh <scene_name> --existing
+```
 
-- `calib_result.txt` 存在；
-- 四孔 SVD RMSE 尽量在厘米以内，本次是 `0.004935 m`；
-- `colored_cloud.pcd` / `colored_cloud.ply` 能生成；
-- RViz 中四个孔位球和点云空洞对应；
-- 不要使用明显异常结果，例如平移 Z 达到数米的结果。
+## 7. 验收
+
+- `hole_refinement_report.yaml` 必须为 `status: pass`；
+- 外参工具默认拒绝 rough seed 文件；
+- 目标 RMSE 小于 `0.008 m`，理想值约 `0.005 m` 或更低；
+- 检查 `colored_cloud.ply` 投影效果；
+- 当前回归场景已达到 `0.002541 m` 和 `0.002671 m`。
+
+## 8. 常见错误
+
+如果出现：
+
+```text
+undefined symbol: libusb_set_option
+```
+
+运行 FAST-Calib 前过滤 MVS SDK 的旧 libusb：
+
+```bash
+CLEAN_LD=$(printf '%s' "${LD_LIBRARY_PATH:-}" | tr ':' '\n' | grep -v '^/opt/MVS/lib' | paste -sd:)
+```
+
+详细说明见：
+
+```text
+calibration_record/interactive_workflow.md
+calibration_record/rough_seed_refinement_plan.md
+calibration_record/pitfalls_and_solutions.md
+```

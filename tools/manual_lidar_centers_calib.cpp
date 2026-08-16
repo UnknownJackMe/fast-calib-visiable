@@ -85,6 +85,33 @@ std::vector<pcl::PointXYZ> loadManualCentersFromYaml(const std::string &path)
   return centers;
 }
 
+bool isValidatedRefinedCentersYaml(const std::string &path)
+{
+  if (path.empty())
+  {
+    return false;
+  }
+  std::ifstream input(path);
+  if (!input.is_open())
+  {
+    return false;
+  }
+  bool refined_kind = false;
+  bool passed = false;
+  std::string line;
+  // Only accept the top-level contract fields. Per-hole entries also contain
+  // a status key, so allowing indentation here could accidentally accept a
+  // top-level failed refinement when one individual hole passed.
+  std::regex kind_re(R"(^kind:\s*refined_lidar_hole_centers\s*$)");
+  std::regex status_re(R"(^status:\s*pass\s*$)");
+  while (std::getline(input, line))
+  {
+    refined_kind = refined_kind || std::regex_match(line, kind_re);
+    passed = passed || std::regex_match(line, status_re);
+  }
+  return refined_kind && passed;
+}
+
 int main(int argc, char **argv)
 {
   rclcpp::init(argc, argv);
@@ -92,8 +119,24 @@ int main(int argc, char **argv)
 
   Params params = loadParameters(node);
   node->declare_parameter("manual_lidar_centers_path", std::string(""));
+  node->declare_parameter("allow_unvalidated_manual_centers", false);
   std::string manual_lidar_centers_path;
+  bool allow_unvalidated_manual_centers = false;
   node->get_parameter_or("manual_lidar_centers_path", manual_lidar_centers_path, std::string(""));
+  node->get_parameter_or("allow_unvalidated_manual_centers", allow_unvalidated_manual_centers, false);
+
+  if (!allow_unvalidated_manual_centers &&
+      !isValidatedRefinedCentersYaml(manual_lidar_centers_path))
+  {
+    RCLCPP_ERROR(
+        node->get_logger(),
+        "Refusing unvalidated LiDAR centers. Expected kind=refined_lidar_hole_centers "
+        "and status=pass in %s. Set allow_unvalidated_manual_centers:=true only for "
+        "explicit legacy replay.",
+        manual_lidar_centers_path.c_str());
+    rclcpp::shutdown();
+    return 5;
+  }
 
   DataPreprocessPtr dataPreprocessPtr;
   dataPreprocessPtr.reset(new DataPreprocess(params));
@@ -146,7 +189,7 @@ int main(int argc, char **argv)
   {
     std::cout << "  " << p.x << " " << p.y << " " << p.z << std::endl;
   }
-  RCLCPP_INFO(node->get_logger(), "Sorted manual LiDAR centers:");
+  RCLCPP_INFO(node->get_logger(), "Sorted refined LiDAR centers:");
   for (const auto &p : lidar_centers->points)
   {
     std::cout << "  " << p.x << " " << p.y << " " << p.z << std::endl;
@@ -161,8 +204,8 @@ int main(int argc, char **argv)
   alignPointCloud(lidar_centers, aligned_lidar_centers, transformation);
 
   double rmse = computeRMSE(qr_centers, aligned_lidar_centers);
-  RCLCPP_INFO(node->get_logger(), "[Manual LiDAR centers] RMSE: %.6f m", rmse);
-  RCLCPP_INFO(node->get_logger(), "[Manual LiDAR centers] T_cam_lidar:");
+  RCLCPP_INFO(node->get_logger(), "[Refined LiDAR centers] RMSE: %.6f m", rmse);
+  RCLCPP_INFO(node->get_logger(), "[Refined LiDAR centers] T_cam_lidar:");
   std::cout << BOLDCYAN << std::fixed << std::setprecision(6) << transformation << RESET << std::endl;
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr colored_cloud(new pcl::PointCloud<pcl::PointXYZRGB>);

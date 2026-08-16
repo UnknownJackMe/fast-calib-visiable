@@ -8,6 +8,7 @@
 
 - `quick_start.md`：下次重新标定的最短流程。
 - `interactive_workflow.md`：RViz 可视化拖球标定流程。
+- `rough_seed_refinement_plan.md`：四球粗定位到自动孔心精修的设计、实施阶段和验收标准。
 - `device_config.md`：设备、网络、ROS、相机内参、标定板参数和关键路径。
 - `pitfalls_and_solutions.md`：这次遇到的坑、现象、原因和解决方案。
 - `final_result_20260617.md`：这次最终采用的四孔外参结果。

@@ -123,6 +123,7 @@ install(PROGRAMS
   scripts/publish_detected_holes.py
   scripts/publish_static_cloud_with_holes.py
   scripts/record_calibration_bag.sh
+  scripts/refine_lidar_hole_seeds.py
   scripts/run_fast_calib_scene.sh
   DESTINATION lib/${PROJECT_NAME}
 )
